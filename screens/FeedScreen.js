@@ -1,8 +1,10 @@
+import { AlertCircle, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,24 +56,37 @@ export default function FeedScreen() {
   const [feed, setFeed] = useState([]);
   const [friendUids, setFriendUids] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
-    if (!uid) return;
-    const unsub = subscribeFriends(uid, (friends) => {
-      setFriendUids(friends.map(f => f.friendUid));
-    });
-    return unsub;
+    if (!uid) {
+      setError('Not authenticated');
+      return;
+    }
+    try {
+      const unsub = subscribeFriends(uid, (friends) => {
+        setFriendUids(friends.map(f => f.friendUid));
+      });
+      return unsub;
+    } catch (e) {
+      setError('Failed to load friends');
+    }
   }, [uid]);
 
   useEffect(() => {
     setLoading(true);
-    const unsub = subscribeFeed(friendUids, (items) => {
-      setFeed(items);
+    try {
+      const unsub = subscribeFeed(friendUids, (items) => {
+        setFeed(items);
+        setLoading(false);
+      });
+      return unsub;
+    } catch (e) {
+      setError('Failed to load feed');
       setLoading(false);
-    });
-    return unsub;
+    }
   }, [friendUids]);
 
   return (
@@ -83,13 +98,13 @@ export default function FeedScreen() {
       <View style={s.divider} />
 
       {loading ? (
-        <View style={s.center}><Text style={s.empty}>Chargement…</Text></View>
+        <View style={s.center}><Text style={s.empty}>Loading…</Text></View>
       ) : feed.length === 0 ? (
         <View style={s.center}>
           <Text style={s.empty}>
             {friendUids.length === 0
-              ? 'Ajoute des amis pour voir leur activité.'
-              : 'Aucune partie récente de tes amis.'}
+              ? 'Add friends to see their activity.'
+              : 'No recent plays from your friends.'}
           </Text>
         </View>
       ) : (
@@ -100,6 +115,18 @@ export default function FeedScreen() {
           ItemSeparatorComponent={() => <View style={s.divider} />}
           showsVerticalScrollIndicator={false}
         />
+      )}
+
+      {error && (
+        <View style={s.errorBanner}>
+          <View style={s.errorContent}>
+            <AlertCircle color={C.red} size={18} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)} activeOpacity={0.7}>
+            <X color={C.muted} size={20} />
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -124,4 +151,14 @@ const s = StyleSheet.create({
   consigne:   { fontSize: 12, color: C.muted, marginTop: 3 },
   scoreTile:  { width: 52, height: 52, borderWidth: 2, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   scoreNum:   { fontSize: 18, fontWeight: '900' },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2C1515', borderTopWidth: 1, borderColor: C.red,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 12,
+  },
+  errorContent: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  errorText: { flex: 1, fontSize: 13, color: C.red, fontWeight: '500' },
 });

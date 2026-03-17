@@ -1,5 +1,5 @@
 import { Audio } from 'expo-av';
-import { Mic } from 'lucide-react-native';
+import { AlertCircle, Mic, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -150,30 +150,51 @@ export default function HomeScreen({ navigation }) {
     setAnalysisStep(0);
     try {
       const recording = recordingRef.current;
+      if (!recording) throw new Error('No recording to process');
+      
       await recording.stopAndUnloadAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
       const uri = recording.getURI();
+      if (!uri) throw new Error('Failed to get recording URI');
 
-      const transcript = await transcribeAudio(uri);
+      // Transcription
+      let transcript;
+      try {
+        transcript = await transcribeAudio(uri);
+      } catch (e) {
+        throw new Error(`Transcription failed: ${e.message}`);
+      }
+
+      // Analysis
       setAnalysisStep(1);
-      const analysis = await analyzeWithGPT(transcript, challenge.theme);
+      let analysis;
+      try {
+        analysis = await analyzeWithGPT(transcript, challenge.theme);
+      } catch (e) {
+        throw new Error(`Analysis failed: ${e.message}`);
+      }
 
-      const newStreak = await recordPlay();
-      await saveToHistory(analysis.score, challenge.theme);
-      await saveScore({ ...analysis, theme: challenge.theme, consigne: challenge.consigne });
-      const history = await getHistory();
+      // Save results
+      try {
+        const newStreak = await recordPlay();
+        await saveToHistory(analysis.score, challenge.theme);
+        await saveScore({ ...analysis, theme: challenge.theme, consigne: challenge.consigne });
+        const history = await getHistory();
 
-      navigation.navigate('Result', {
-        ...analysis,
-        theme: challenge.theme,
-        consigne: challenge.consigne,
-        transcript,
-        audioUri: uri,
-        streak: newStreak,
-        history,
-      });
+        navigation.navigate('Result', {
+          ...analysis,
+          theme: challenge.theme,
+          consigne: challenge.consigne,
+          transcript,
+          audioUri: uri,
+          streak: newStreak,
+          history,
+        });
+      } catch (e) {
+        throw new Error(`Failed to save results: ${e.message}`);
+      }
     } catch (e) {
-      setError('Erreur : ' + e.message);
+      setError(e.message || 'An unexpected error occurred');
     } finally {
       setPhase('idle');
       setCountdown(RECORD_DURATION_SEC);
@@ -302,7 +323,17 @@ export default function HomeScreen({ navigation }) {
         {phase === 'analyzing'       && renderAnalyzing()}
       </View>
 
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {error && (
+        <View style={s.errorBanner}>
+          <View style={s.errorContent}>
+            <AlertCircle color={C.red} size={18} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)} activeOpacity={0.7}>
+            <X color={C.muted} size={20} />
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -359,5 +390,13 @@ const s = StyleSheet.create({
   analysisDot:   { width: 10, height: 10, borderRadius: 5 },
   analysisLabel: { fontSize: 16, fontWeight: '600' },
 
-  error: { textAlign: 'center', color: C.red, fontSize: 13, paddingBottom: 24, paddingHorizontal: 24 },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2C1515', borderTopWidth: 1, borderColor: C.red,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 12,
+  },
+  errorContent: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  errorText: { flex: 1, fontSize: 13, color: C.red, fontWeight: '500' },
 });

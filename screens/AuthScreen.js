@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { login, signup } from '../services/authService';
+import { validateEmail, validatePassword, validateUsername } from '../services/validation';
 
 const C = {
   bg: '#111111', border: '#2C2C2C', text: '#FFFFFF',
@@ -26,9 +28,20 @@ export default function AuthScreen() {
 
   async function handleSubmit() {
     setError(null);
-    if (!email.trim() || !password.trim()) { setError('Remplis tous les champs.'); return; }
-    if (mode === 'signup' && !username.trim()) { setError('Choisis un nom d\'utilisateur.'); return; }
-    if (mode === 'signup' && username.trim().length < 3) { setError('Nom d\'utilisateur trop court (3 min).'); return; }
+
+    // Validate email
+    const emailErr = validateEmail(email);
+    if (emailErr) { setError(emailErr); return; }
+
+    // Validate password
+    const passErr = validatePassword(password);
+    if (passErr) { setError(passErr); return; }
+
+    // Validate username for signup
+    if (mode === 'signup') {
+      const userErr = validateUsername(username);
+      if (userErr) { setError(userErr); return; }
+    }
 
     setLoading(true);
     try {
@@ -38,10 +51,20 @@ export default function AuthScreen() {
         await login(email.trim(), password);
       }
     } catch (e) {
-      const msg = e.code === 'auth/email-already-in-use' ? 'Email déjà utilisé.'
-        : e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found' ? 'Email ou mot de passe incorrect.'
-        : e.code === 'auth/weak-password' ? 'Mot de passe trop court (6 min).'
-        : e.message;
+      let msg = 'An error occurred. Please try again.';
+      if (e.code === 'auth/email-already-in-use') {
+        msg = 'This email is already registered.';
+      } else if (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+        msg = 'Invalid email or password.';
+      } else if (e.code === 'auth/weak-password') {
+        msg = 'Password is too weak (minimum 6 characters).';
+      } else if (e.code === 'auth/invalid-email') {
+        msg = 'Invalid email address.';
+      } else if (e.code === 'auth/network-request-failed') {
+        msg = 'Network error. Please check your connection.';
+      } else if (e.message) {
+        msg = e.message;
+      }
       setError(msg);
     } finally {
       setLoading(false);

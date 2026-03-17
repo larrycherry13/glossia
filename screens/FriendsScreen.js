@@ -1,3 +1,4 @@
+import { AlertCircle, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +34,8 @@ export default function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [loadingRequests, setLoadingRequests] = useState({}); // Track loading state per request ID
   const [msg, setMsg] = useState(null);
 
   const uid = auth.currentUser?.uid;
@@ -46,29 +49,55 @@ export default function FriendsScreen() {
 
   async function handleSearch() {
     if (!searchQuery.trim()) return;
+    setError(null);
     setSearching(true);
     try {
       const results = await searchUsers(searchQuery);
       setSearchResults(results);
+      if (results.length === 0) {
+        setMsg('No players found.');
+      }
+    } catch (e) {
+      setError(e.message || 'Search failed');
     } finally {
       setSearching(false);
     }
   }
 
   async function handleAdd(targetUid) {
-    setMsg(null);
+    setError(null);
     try {
       await sendFriendRequest(targetUid);
-      setMsg('Demande envoyée !');
-    } catch (e) { setMsg(e.message); }
+      setMsg('Friend request sent!');
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (e) {
+      setError(e.message || 'Failed to send request');
+    }
   }
 
   async function handleAccept(id) {
-    await acceptFriendRequest(id);
+    setError(null);
+    setLoadingRequests(prev => ({ ...prev, [id]: true }));
+    try {
+      await acceptFriendRequest(id);
+    } catch (e) {
+      setError(e.message || 'Failed to accept request');
+    } finally {
+      setLoadingRequests(prev => ({ ...prev, [id]: false }));
+    }
   }
 
   async function handleDecline(id) {
-    await declineFriendRequest(id);
+    setError(null);
+    setLoadingRequests(prev => ({ ...prev, [id]: true }));
+    try {
+      await declineFriendRequest(id);
+    } catch (e) {
+      setError(e.message || 'Failed to decline request');
+    } finally {
+      setLoadingRequests(prev => ({ ...prev, [id]: false }));
+    }
   }
 
   return (
@@ -118,11 +147,25 @@ export default function FriendsScreen() {
                 <View style={s.requestRow}>
                   <Text style={s.username}>{item.senderUsername}</Text>
                   <View style={s.requestActions}>
-                    <TouchableOpacity style={s.acceptBtn} onPress={() => handleAccept(item.id)} activeOpacity={0.7}>
-                      <Text style={s.acceptText}>Accepter</Text>
+                    <TouchableOpacity 
+                      style={s.acceptBtn} 
+                      onPress={() => handleAccept(item.id)} 
+                      activeOpacity={0.7}
+                      disabled={loadingRequests[item.id]}
+                    >
+                      {loadingRequests[item.id] ? (
+                        <ActivityIndicator color="#111" size="small" />
+                      ) : (
+                        <Text style={s.acceptText}>Accept</Text>
+                      )}
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.declineBtn} onPress={() => handleDecline(item.id)} activeOpacity={0.7}>
-                      <Text style={s.declineText}>Refuser</Text>
+                    <TouchableOpacity 
+                      style={s.declineBtn} 
+                      onPress={() => handleDecline(item.id)} 
+                      activeOpacity={0.7}
+                      disabled={loadingRequests[item.id]}
+                    >
+                      <Text style={s.declineText}>Decline</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -161,14 +204,35 @@ export default function FriendsScreen() {
                 renderItem={({ item }) => (
                   <View style={s.requestRow}>
                     <Text style={s.username}>{item.username}</Text>
-                    <TouchableOpacity style={s.acceptBtn} onPress={() => handleAdd(item.uid)} activeOpacity={0.7}>
-                      <Text style={s.acceptText}>+ Ajouter</Text>
+                    <TouchableOpacity 
+                      style={s.acceptBtn} 
+                      onPress={() => handleAdd(item.uid)} 
+                      activeOpacity={0.7}
+                      disabled={loadingRequests[item.uid]}
+                    >
+                      {loadingRequests[item.uid] ? (
+                        <ActivityIndicator color="#111" size="small" />
+                      ) : (
+                        <Text style={s.acceptText}>+ Add</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 )}
                 ItemSeparatorComponent={() => <View style={s.divider} />}
               />
           }
+        </View>
+      )}
+
+      {error && (
+        <View style={s.errorBanner}>
+          <View style={s.errorContent}>
+            <AlertCircle color={C.red} size={18} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)} activeOpacity={0.7}>
+            <X color={C.muted} size={20} />
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -206,4 +270,14 @@ const s = StyleSheet.create({
   searchBtn:   { backgroundColor: C.text, borderRadius: 4, paddingHorizontal: 18, justifyContent: 'center' },
   searchBtnText: { fontSize: 13, fontWeight: '700', color: '#111' },
   msg:         { fontSize: 13, color: C.green, textAlign: 'center', marginBottom: 12 },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2C1515', borderTopWidth: 1, borderColor: C.red,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 12,
+  },
+  errorContent: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  errorText: { flex: 1, fontSize: 13, color: C.red, fontWeight: '500' },
 });

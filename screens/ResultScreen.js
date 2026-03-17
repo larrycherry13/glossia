@@ -1,5 +1,5 @@
 import { Audio } from 'expo-av';
-import { Pause, Play, RotateCcw, Share2 } from 'lucide-react-native';
+import { AlertCircle, Pause, Play, RotateCcw, Share2, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -118,11 +118,13 @@ export default function ResultScreen({ route, navigation }) {
   } = route.params;
 
   const [soundStatus, setSoundStatus] = useState('idle');
+  const [error, setError] = useState(null);
   const soundRef = useRef(null);
 
   useEffect(() => { return () => { soundRef.current?.unloadAsync(); }; }, []);
 
   async function handlePlayPause() {
+    setError(null);
     try {
       if (soundStatus === 'idle') {
         await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
@@ -137,21 +139,29 @@ export default function ResultScreen({ route, navigation }) {
       } else {
         await soundRef.current.playAsync(); setSoundStatus('playing');
       }
-    } catch (e) { console.warn(e.message); }
+    } catch (e) {
+      setError('Failed to play audio: ' + e.message);
+      setSoundStatus('idle');
+    }
   }
 
   async function handleShare() {
+    setError(null);
     const squares = history.map(h => scoreSquare(h.score)).join('');
     try {
       await Share.share({
         message:
-          `GLOSSIA — Jeu d'éloquence\n\n` +
+          `GLOSSIA — Eloquence Game\n\n` +
           `"${theme}"\n\n` +
-          `Score : ${score}/100 ${scoreSquare(score)}\n` +
-          `Mots parasites : ${fillers_count}\n\n` +
-          `Mes 5 derniers : ${squares}`,
+          `Score: ${score}/100 ${scoreSquare(score)}\n` +
+          `Filler words: ${fillers_count}\n\n` +
+          `Last 5: ${squares}`,
       });
-    } catch {}
+    } catch (e) {
+      if (e.message !== 'User did not share') {
+        setError('Failed to share: ' + e.message);
+      }
+    }
   }
 
   function handleReplay() {
@@ -259,22 +269,34 @@ export default function ResultScreen({ route, navigation }) {
           <TouchableOpacity style={s.btnSecondary} onPress={handlePlayPause} activeOpacity={0.7}>
             {soundStatus === 'playing' ? <Pause color={C.text} size={15} /> : <Play color={C.text} size={15} />}
             <Text style={s.btnSecondaryText}>
-              {soundStatus === 'playing' ? 'Pause' : soundStatus === 'paused' ? 'Reprendre' : 'Réécouter'}
+              {soundStatus === 'playing' ? 'Pause' : soundStatus === 'paused' ? 'Resume' : 'Listen'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.btnSecondary} onPress={handleShare} activeOpacity={0.7}>
             <Share2 color={C.text} size={15} />
-            <Text style={s.btnSecondaryText}>Partager</Text>
+            <Text style={s.btnSecondaryText}>Share</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={[s.btnPrimary, { marginHorizontal: 24, marginTop: 12 }]} onPress={handleReplay} activeOpacity={0.7}>
           <RotateCcw color="#111" size={15} />
-          <Text style={s.btnPrimaryText}>Nouvel essai</Text>
+          <Text style={s.btnPrimaryText}>Try Again</Text>
         </TouchableOpacity>
 
       </ScrollView>
+
+      {error && (
+        <View style={s.errorBanner}>
+          <View style={s.errorContent}>
+            <AlertCircle color={C.red} size={18} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)} activeOpacity={0.7}>
+            <X color={C.muted} size={20} />
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -324,4 +346,14 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingVertical: 16,
   },
   btnSecondaryText: { fontSize: 14, fontWeight: '700', color: C.text, letterSpacing: 1 },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2C1515', borderTopWidth: 1, borderColor: C.red,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 12,
+  },
+  errorContent: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  errorText: { flex: 1, fontSize: 13, color: C.red, fontWeight: '500' },
 });
