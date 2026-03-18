@@ -1,9 +1,14 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GuestGate from '../components/GuestGate';
 import { logout } from '../services/authService';
+import { useAuth } from '../services/AuthContext';
+import { useTranslation } from '../services/LanguageContext';
 import { auth } from '../services/firebase';
-import { getProfile, subscribeMyScores } from '../services/firestoreService';
+import { getProfile, subscribeMyScores, uploadProfilePhoto } from '../services/firestoreService';
+import { getRank } from '../services/rank';
 
 const C = {
   bg: '#111111', border: '#2C2C2C', text: '#FFFFFF',
@@ -17,8 +22,19 @@ function tileColor(score) {
 }
 
 export default function ProfileScreen() {
+  const user = useAuth();
+  const { t } = useTranslation();
+  if (!user) {
+    return <GuestGate title={t('gate_profile_title')} subtitle={t('gate_profile_sub')} />;
+  }
+  return <ProfileContent />;
+}
+
+function ProfileContent() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [scores, setScores] = useState([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const uid = auth.currentUser?.uid;
 
@@ -29,11 +45,36 @@ export default function ProfileScreen() {
     return unsub;
   }, [uid]);
 
+  async function handlePickPhoto() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6,
+    });
+
+    if (result.canceled) return;
+
+    setPhotoUploading(true);
+    try {
+      const photoURL = await uploadProfilePhoto(result.assets[0].uri);
+      setProfile(prev => ({ ...prev, photoURL }));
+    } catch (e) {
+      console.warn('Photo upload failed:', e.message);
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
   async function handleLogout() {
     await logout();
   }
 
   const bestScore = scores.length ? Math.max(...scores.map(s => s.score)) : null;
+  const rank = getRank(profile?.streak ?? 0, t('ranks'));
 
   return (
     <SafeAreaView style={s.root}>
@@ -46,11 +87,36 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Identity */}
         <View style={s.identityBlock}>
-          <View style={s.avatar}>
-            <Text style={s.avatarLetter}>{profile?.username?.[0]?.toUpperCase() || '?'}</Text>
-          </View>
+          <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.8} style={s.avatarWrapper}>
+            {profile?.photoURL ? (
+              <Image source={{ uri: profile.photoURL }} style={s.avatarPhoto} />
+            ) : (
+              <View style={s.avatar}>
+                <Text style={s.avatarLetter}>{profile?.username?.[0]?.toUpperCase() || '?'}</Text>
+              </View>
+            )}
+            <View style={s.cameraBtn}>
+              <Text style={s.cameraIcon}>{photoUploading ? '…' : '📷'}</Text>
+            </View>
+          </TouchableOpacity>
           <Text style={s.username}>{profile?.username || '…'}</Text>
           <Text style={s.email}>{auth.currentUser?.email}</Text>
+
+          {/* Rank */}
+          <View style={s.rankBlock}>
+            <View style={s.rankRow}>
+              <Text style={s.rankName}>{rank.name.toUpperCase()}</Text>
+              {!rank.isMax && (
+                <Text style={s.rankNext}>→ {rank.nextName}</Text>
+              )}
+            </View>
+            <View style={s.rankTrack}>
+              <View style={[s.rankFill, { width: `${rank.progress * 100}%` }]} />
+            </View>
+            {!rank.isMax && (
+              <Text style={s.rankHint}>{rank.streak} / {rank.next} 🔥</Text>
+            )}
+          </View>
         </View>
 
         <View style={s.divider} />
@@ -116,8 +182,12 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: C.border },
 
   identityBlock: { alignItems: 'center', paddingVertical: 32 },
-  avatar:        { width: 72, height: 72, borderRadius: 36, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  avatarWrapper: { marginBottom: 14, position: 'relative' },
+  avatar:        { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  avatarPhoto:   { width: 80, height: 80, borderRadius: 40, borderWidth: 1, borderColor: C.border },
   avatarLetter:  { fontSize: 28, fontWeight: '800', color: C.text },
+  cameraBtn:     { position: 'absolute', bottom: 0, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  cameraIcon:    { fontSize: 12 },
   username:      { fontSize: 22, fontWeight: '800', color: C.text },
   email:         { fontSize: 13, color: C.muted, marginTop: 4 },
 
@@ -135,6 +205,14 @@ const s = StyleSheet.create({
   scoreConsigne: { fontSize: 12, color: C.muted, marginTop: 2 },
   scoreTile:     { width: 46, height: 46, borderWidth: 2, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   scoreNum:      { fontSize: 15, fontWeight: '900' },
+
+  rankBlock:  { width: '70%', marginTop: 16, gap: 6 },
+  rankRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rankName:   { fontSize: 11, fontWeight: '800', color: C.text, letterSpacing: 2 },
+  rankNext:   { fontSize: 10, color: C.muted, letterSpacing: 1 },
+  rankTrack:  { height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
+  rankFill:   { height: '100%', backgroundColor: C.yellow, borderRadius: 2 },
+  rankHint:   { fontSize: 10, color: C.muted, textAlign: 'right', letterSpacing: 1 },
 
   logoutBtn:  { marginHorizontal: 24, marginVertical: 24, borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingVertical: 16, alignItems: 'center' },
   logoutText: { fontSize: 14, fontWeight: '700', color: C.muted, letterSpacing: 1 },

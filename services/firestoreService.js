@@ -12,7 +12,22 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { auth, db, storage } from './firebase';
+
+export async function uploadProfilePhoto(uri) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const photoRef = ref(storage, `profiles/${user.uid}/avatar.jpg`);
+  await uploadBytes(photoRef, blob);
+  const photoURL = await getDownloadURL(photoRef);
+
+  await updateDoc(doc(db, 'users', user.uid), { photoURL });
+  return photoURL;
+}
 
 // ── Users ──────────────────────────────────────────────────────────────────────
 
@@ -104,7 +119,7 @@ export function subscribeFriends(uid, callback) {
         const data = d.data();
         const friendUid = (data.members || []).find(m => m !== uid);
         const profile = await getProfile(friendUid);
-        return { friendshipId: d.id, friendUid, username: profile?.username || '?', ...data };
+        return { friendshipId: d.id, friendUid, username: profile?.username || '?', photoURL: profile?.photoURL || null, ...data };
       })
     );
     callback(friends);
@@ -126,6 +141,40 @@ export function subscribePendingRequests(uid, callback) {
       })
     );
     callback(requests);
+  });
+}
+
+// ── Daily Podium ───────────────────────────────────────────────────────────────
+
+export function subscribeDailyPodium(friendUids, callback) {
+  const myUid = auth.currentUser?.uid;
+  const allUids = [myUid, ...friendUids].filter(Boolean).slice(0, 10);
+  if (allUids.length === 0) { callback([]); return () => {}; }
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const q = query(
+    collection(db, 'scores'),
+    where('userId', 'in', allUids),
+    where('timestamp', '>=', startOfToday),
+    orderBy('timestamp', 'desc'),
+    limit(50)
+  );
+
+  return onSnapshot(q, snap => {
+    const scores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Keep best score per user today
+    const byUser = {};
+    scores.forEach(s => {
+      if (!byUser[s.userId] || s.score > byUser[s.userId].score) {
+        byUser[s.userId] = s;
+      }
+    });
+    const podium = Object.values(byUser)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+    callback(podium);
   });
 }
 

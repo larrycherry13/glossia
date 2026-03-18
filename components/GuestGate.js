@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -19,9 +18,9 @@ const C = {
   muted: '#818384', red: '#C0392B',
 };
 
-export default function AuthScreen() {
+export default function GuestGate({ title, subtitle }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,15 +30,12 @@ export default function AuthScreen() {
   async function handleSubmit() {
     setError(null);
 
-    // Validate email
     const emailErr = validateEmail(email);
     if (emailErr) { setError(emailErr); return; }
 
-    // Validate password
     const passErr = validatePassword(password);
     if (passErr) { setError(passErr); return; }
 
-    // Validate username for signup
     if (mode === 'signup') {
       const userErr = validateUsername(username);
       if (userErr) { setError(userErr); return; }
@@ -54,11 +50,11 @@ export default function AuthScreen() {
       }
     } catch (e) {
       let msg = t('err_generic');
-      if (e.code === 'auth/email-already-in-use')                              msg = t('err_email_used');
+      if (e.code === 'auth/email-already-in-use')                                   msg = t('err_email_used');
       else if (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') msg = t('err_wrong_pass');
-      else if (e.code === 'auth/weak-password')                                msg = t('err_weak_pass');
-      else if (e.code === 'auth/invalid-email')                                msg = t('err_invalid_email');
-      else if (e.code === 'auth/network-request-failed')                       msg = t('err_network');
+      else if (e.code === 'auth/weak-password')                                      msg = t('err_weak_pass');
+      else if (e.code === 'auth/invalid-email')                                      msg = t('err_invalid_email');
+      else if (e.code === 'auth/network-request-failed')                             msg = t('err_network');
       else if (e.message) msg = e.message;
       setError(msg);
     } finally {
@@ -70,8 +66,8 @@ export default function AuthScreen() {
     <SafeAreaView style={s.root}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.inner}>
 
-        <Text style={s.logo}>GLOSSIA</Text>
-        <Text style={s.sub}>Jeu d'éloquence</Text>
+        <Text style={s.title}>{title}</Text>
+        <Text style={s.subtitle}>{subtitle}</Text>
 
         <View style={s.divider} />
 
@@ -108,7 +104,9 @@ export default function AuthScreen() {
           {error ? <Text style={s.error}>{error}</Text> : null}
 
           <TouchableOpacity style={s.btn} onPress={handleSubmit} activeOpacity={0.7} disabled={loading}>
-            <Text style={s.btnText}>{loading ? '…' : mode === 'login' ? t('submit_login') : t('submit_signup')}</Text>
+            <Text style={s.btnText}>
+              {loading ? '…' : mode === 'login' ? t('submit_login') : t('submit_signup')}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -124,22 +122,22 @@ export default function AuthScreen() {
 }
 
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  inner:  { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  logo:   { fontSize: 28, fontWeight: '900', color: C.text, letterSpacing: 6, textAlign: 'center' },
-  sub:    { fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 6, letterSpacing: 1 },
-  divider:{ height: 1, backgroundColor: '#2C2C2C', marginVertical: 36 },
-  form:   { gap: 12 },
+  root:     { flex: 1, backgroundColor: C.bg },
+  inner:    { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
+  title:    { fontSize: 18, fontWeight: '900', color: C.text, letterSpacing: 3, textAlign: 'center' },
+  subtitle: { fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 8, letterSpacing: 0.5, lineHeight: 20 },
+  divider:  { height: 1, backgroundColor: C.border, marginVertical: 32 },
+  form:     { gap: 12 },
   input: {
-    borderWidth: 1, borderColor: '#2C2C2C', borderRadius: 4,
+    borderWidth: 1, borderColor: C.border, borderRadius: 4,
     paddingVertical: 14, paddingHorizontal: 16,
     fontSize: 15, color: C.text, backgroundColor: '#1A1A1A',
   },
-  error:  { fontSize: 13, color: C.red, textAlign: 'center', marginTop: 4 },
+  error:    { fontSize: 13, color: C.red, textAlign: 'center', marginTop: 4 },
   btn: {
     backgroundColor: C.text, borderRadius: 4,
     paddingVertical: 16, alignItems: 'center', marginTop: 8,
   },
-  btnText: { fontSize: 15, fontWeight: '700', color: '#111', letterSpacing: 1 },
-  toggle:  { textAlign: 'center', color: C.muted, fontSize: 13, marginTop: 24 },
+  btnText:  { fontSize: 15, fontWeight: '700', color: '#111', letterSpacing: 1 },
+  toggle:   { textAlign: 'center', color: C.muted, fontSize: 13, marginTop: 24 },
 });

@@ -18,6 +18,8 @@
     "expo": "^54.0.0",
     "expo-audio": "^55.0.8",
     "expo-av": "~16.0.8",
+    "expo-file-system": "~19.0.21",
+    "expo-image-picker": "~17.0.10",
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.10.0",
     "lucide-react-native": "^0.577.0",
@@ -29,7 +31,8 @@
     "react-native-svg": "^15.15.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "sharp": "^0.34.5"
   },
   "private": true
 }

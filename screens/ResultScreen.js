@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from '../services/LanguageContext';
+import { getTomorrowChallenge } from '../services/challenges';
 
 const C = {
   bg:     '#111111',
@@ -29,10 +31,10 @@ function tileColor(score) {
   return C.red;
 }
 
-function scoreGrade(score) {
-  if (score >= 80) return 'EXCELLENT';
-  if (score >= 55) return 'CORRECT';
-  return 'À RETRAVAILLER';
+function scoreGrade(score, t) {
+  if (score >= 80) return t('grade_excellent');
+  if (score >= 55) return t('grade_correct');
+  return t('grade_rework');
 }
 
 function scoreSquare(score) {
@@ -84,7 +86,7 @@ const bar = StyleSheet.create({
   fill:     { height: '100%', borderRadius: 2 },
 });
 
-function AnimatedScore({ score }) {
+function AnimatedScore({ score, t }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -98,7 +100,7 @@ function AnimatedScore({ score }) {
   return (
     <View style={[ss.tile, { borderColor: color }]}>
       <Text style={[ss.num, { color }]}>{display}</Text>
-      <Text style={[ss.grade, { color }]}>{scoreGrade(score)}</Text>
+      <Text style={[ss.grade, { color }]}>{scoreGrade(score, t)}</Text>
     </View>
   );
 }
@@ -110,12 +112,15 @@ const ss = StyleSheet.create({
 });
 
 export default function ResultScreen({ route, navigation }) {
+  const { t, lang } = useTranslation();
   const {
     score, fluidity, fillers_score, relevance,
     feedback, fillers_count,
-    theme, consigne, transcript, audioUri,
-    streak, history = [],
+    theme, consigne, challengeId, transcript, audioUri,
+    streak, history = [], firstSession = false,
   } = route.params;
+
+  const tomorrow = firstSession ? getTomorrowChallenge(lang) : null;
 
   const [soundStatus, setSoundStatus] = useState('idle');
   const [error, setError] = useState(null);
@@ -147,15 +152,9 @@ export default function ResultScreen({ route, navigation }) {
 
   async function handleShare() {
     setError(null);
-    const squares = history.map(h => scoreSquare(h.score)).join('');
     try {
       await Share.share({
-        message:
-          `GLOSSIA — Eloquence Game\n\n` +
-          `"${theme}"\n\n` +
-          `Score: ${score}/100 ${scoreSquare(score)}\n` +
-          `Filler words: ${fillers_count}\n\n` +
-          `Last 5: ${squares}`,
+        message: t('share_text', challengeId, score, fillers_count, streak),
       });
     } catch (e) {
       if (e.message !== 'User did not share') {
@@ -174,7 +173,12 @@ export default function ResultScreen({ route, navigation }) {
   return (
     <SafeAreaView style={s.root}>
       <View style={s.header}>
-        <Text style={s.logo}>GLOSSIA</Text>
+        <View>
+          <Text style={s.logo}>GLOSSIA</Text>
+          {challengeId && (
+            <Text style={s.challengeNum}>Challenge #{challengeId}</Text>
+          )}
+        </View>
         {streak > 0 && (
           <View style={s.streakRow}>
             <Text>🔥</Text>
@@ -188,7 +192,7 @@ export default function ResultScreen({ route, navigation }) {
 
         {/* Score */}
         <View style={s.scoreSection}>
-          <AnimatedScore score={score} />
+          <AnimatedScore score={score} t={t} />
           <Text style={s.scoreOutOf}>/100</Text>
         </View>
 
@@ -196,7 +200,7 @@ export default function ResultScreen({ route, navigation }) {
 
         {/* Feedback — héro */}
         <View style={s.feedbackBlock}>
-          <Text style={s.sectionLabel}>RETOUR</Text>
+          <Text style={s.sectionLabel}>{t('feedback_label')}</Text>
           <Text style={s.feedbackText}>{feedback}</Text>
         </View>
 
@@ -204,21 +208,21 @@ export default function ResultScreen({ route, navigation }) {
 
         {/* Score breakdown */}
         <View style={s.breakdownBlock}>
-          <Text style={s.sectionLabel}>DÉTAIL</Text>
-          <ScoreBar label="FLUIDITÉ"       value={fluidity}      max={30} delay={0}   />
-          <ScoreBar label="MOTS PARASITES" value={fillers_score} max={30} delay={150} />
-          <ScoreBar label="PERTINENCE"     value={relevance}     max={40} delay={300} />
+          <Text style={s.sectionLabel}>{t('detail_label')}</Text>
+          <ScoreBar label={t('fluidity')} value={fluidity}      max={30} delay={0}   />
+          <ScoreBar label={t('fillers')}  value={fillers_score} max={30} delay={150} />
+          <ScoreBar label={t('relevance')}value={relevance}     max={40} delay={300} />
         </View>
 
         <View style={s.divider} />
 
         {/* Fillers count */}
         <View style={s.row}>
-          <Text style={s.sectionLabel}>MOTS PARASITES</Text>
+          <Text style={s.sectionLabel}>{t('fillers_label')}</Text>
           <View style={s.rowRight}>
             <Text style={[s.bigVal, { color: fillerColor }]}>{fillers_count}</Text>
             <Text style={[s.sub, { color: fillerColor }]}>
-              {fillers_count === 0 ? 'AUCUN' : fillers_count <= 2 ? 'QUELQUES-UNS' : 'TROP'}
+              {fillers_count === 0 ? t('filler_none') : fillers_count <= 2 ? t('filler_few') : t('filler_too_many')}
             </Text>
           </View>
         </View>
@@ -227,7 +231,7 @@ export default function ResultScreen({ route, navigation }) {
 
         {/* Theme recap */}
         <View style={s.row}>
-          <Text style={s.sectionLabel}>THÈME</Text>
+          <Text style={s.sectionLabel}>{t('theme_label_r')}</Text>
           <View style={s.rowRight}>
             <Text style={s.themeVal}>{theme}</Text>
             <Text style={s.sub}>{consigne}</Text>
@@ -236,11 +240,21 @@ export default function ResultScreen({ route, navigation }) {
 
         <View style={s.divider} />
 
-        {/* History — last 5 sessions */}
-        {history.length > 0 && (
+        {/* First session: average comparison */}
+        {firstSession && (
+          <>
+            <View style={s.firstAvgBlock}>
+              <Text style={s.firstAvgText}>{t('first_avg', score)}</Text>
+            </View>
+            <View style={s.divider} />
+          </>
+        )}
+
+        {/* History — hidden on first session */}
+        {!firstSession && history.length > 0 && (
           <>
             <View style={s.historyBlock}>
-              <Text style={s.sectionLabel}>HISTORIQUE</Text>
+              <Text style={s.sectionLabel}>{t('history_label')}</Text>
               <View style={s.historyRow}>
                 {history.map((h, i) => (
                   <View key={i} style={[s.histTile, { borderColor: tileColor(h.score) }]}>
@@ -253,11 +267,24 @@ export default function ResultScreen({ route, navigation }) {
           </>
         )}
 
+        {/* First session: tomorrow's challenge */}
+        {firstSession && tomorrow && (
+          <>
+            <View style={s.tomorrowBlock}>
+              <Text style={s.sectionLabel}>{t('tomorrow_label')}</Text>
+              <Text style={s.tomorrowTheme}>{tomorrow.theme}</Text>
+              <Text style={s.tomorrowConsigne}>{tomorrow.consigne}</Text>
+              <Text style={s.tomorrowSub}>{t('tomorrow_sub')}</Text>
+            </View>
+            <View style={s.divider} />
+          </>
+        )}
+
         {/* Transcript */}
         {transcript ? (
           <>
             <View style={s.feedbackBlock}>
-              <Text style={s.sectionLabel}>TRANSCRIPTION</Text>
+              <Text style={s.sectionLabel}>{t('transcript_label')}</Text>
               <Text style={s.transcriptText}>{transcript}</Text>
             </View>
             <View style={s.divider} />
@@ -269,19 +296,19 @@ export default function ResultScreen({ route, navigation }) {
           <TouchableOpacity style={s.btnSecondary} onPress={handlePlayPause} activeOpacity={0.7}>
             {soundStatus === 'playing' ? <Pause color={C.text} size={15} /> : <Play color={C.text} size={15} />}
             <Text style={s.btnSecondaryText}>
-              {soundStatus === 'playing' ? 'Pause' : soundStatus === 'paused' ? 'Resume' : 'Listen'}
+              {soundStatus === 'playing' ? t('btn_pause') : soundStatus === 'paused' ? t('btn_resume') : t('btn_listen')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.btnSecondary} onPress={handleShare} activeOpacity={0.7}>
             <Share2 color={C.text} size={15} />
-            <Text style={s.btnSecondaryText}>Share</Text>
+            <Text style={s.btnSecondaryText}>{t('btn_share')}</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={[s.btnPrimary, { marginHorizontal: 24, marginTop: 12 }]} onPress={handleReplay} activeOpacity={0.7}>
           <RotateCcw color="#111" size={15} />
-          <Text style={s.btnPrimaryText}>Try Again</Text>
+          <Text style={s.btnPrimaryText}>{t('btn_replay')}</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -309,10 +336,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16,
   },
-  logo:      { fontSize: 22, fontWeight: '900', color: C.text, letterSpacing: 6 },
-  streakRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  streakNum: { fontSize: 18, fontWeight: '700', color: C.text },
-  divider:   { height: 1, backgroundColor: C.border },
+  logo:         { fontSize: 22, fontWeight: '900', color: C.text, letterSpacing: 6 },
+  challengeNum: { fontSize: 11, fontWeight: '700', color: C.muted, letterSpacing: 2, marginTop: 2 },
+  streakRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  streakNum:    { fontSize: 18, fontWeight: '700', color: C.text },
+  divider:      { height: 1, backgroundColor: C.border },
 
   scoreSection: { alignItems: 'center', paddingVertical: 36, gap: 6 },
   scoreOutOf:   { fontSize: 12, color: C.muted, letterSpacing: 1 },
@@ -329,6 +357,14 @@ const s = StyleSheet.create({
   bigVal:   { fontSize: 28, fontWeight: '900' },
   themeVal: { fontSize: 16, fontWeight: '700', color: C.text, textAlign: 'right' },
   sub:      { fontSize: 10, color: C.muted, marginTop: 2, textAlign: 'right', letterSpacing: 1 },
+
+  firstAvgBlock:   { paddingHorizontal: 24, paddingVertical: 20 },
+  firstAvgText:    { fontSize: 15, color: C.text, lineHeight: 24, textAlign: 'center' },
+
+  tomorrowBlock:   { paddingHorizontal: 24, paddingVertical: 22 },
+  tomorrowTheme:   { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 6 },
+  tomorrowConsigne:{ fontSize: 14, color: C.muted, lineHeight: 20, marginBottom: 10 },
+  tomorrowSub:     { fontSize: 12, color: C.green, fontWeight: '700', letterSpacing: 1 },
 
   historyBlock: { paddingHorizontal: 24, paddingVertical: 22 },
   historyRow:   { flexDirection: 'row', gap: 10 },

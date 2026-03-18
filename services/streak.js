@@ -20,6 +20,21 @@ export async function saveToHistory(score, theme) {
   } catch {}
 }
 
+export async function isFirstSession() {
+  try {
+    const history = await getHistory();
+    return history.length === 0;
+  } catch { return false; }
+}
+
+export async function hasPlayedToday() {
+  try {
+    const today = new Date().toDateString();
+    const lastPlayed = await AsyncStorage.getItem(KEY_LAST_PLAYED);
+    return lastPlayed === today;
+  } catch { return false; }
+}
+
 export async function getStreak() {
   try {
     const val = await AsyncStorage.getItem(KEY_STREAK);

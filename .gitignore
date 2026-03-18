@@ -18,6 +18,11 @@ web-build/
 # macOS
 .DS_Store
 
+# Configuration and secrets (DO NOT COMMIT)
+config.js
+.env
+.env.local
+
 # Windows
 Thumbs.db
 

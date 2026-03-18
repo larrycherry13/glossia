@@ -1,4 +1,4 @@
-const CHALLENGES = [
+const CHALLENGES_FR = [
   // 🏛️ Société & Actualité
   { theme: 'Le Télétravail', consigne: 'Est-ce la fin des bureaux physiques ?' },
   { theme: 'Les Réseaux Sociaux', consigne: 'Sont-ils devenus trop toxiques ?' },
@@ -17,7 +17,7 @@ const CHALLENGES = [
   { theme: 'La Télé-réalité', consigne: 'Un plaisir coupable ou une perte de temps ?' },
   { theme: 'Le Dernier Film Marquant', consigne: "Pourquoi l'as-tu aimé ?" },
   { theme: 'Les Influenceurs', consigne: 'Ont-ils trop de pouvoir sur les jeunes ?' },
-  { theme: 'Les Jeux Vidéo', consigne: 'Sont-ils une forme d\'art ?' },
+  { theme: 'Les Jeux Vidéo', consigne: "Sont-ils une forme d'art ?" },
   { theme: 'La Presse Papier', consigne: 'Va-t-elle disparaître ?' },
   { theme: 'YouTube', consigne: 'Est-ce la nouvelle télévision ?' },
   { theme: 'Le Sport à la Télé', consigne: 'Pourquoi cet engouement mondial ?' },
@@ -48,9 +48,74 @@ const CHALLENGES = [
   { theme: "L'Humanité dans 100 Ans", consigne: 'Quel sera notre futur ?' },
 ];
 
-/**
- * Returns a random challenge each call.
- */
-export function getRandomChallenge() {
-  return CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+const CHALLENGES_EN = [
+  // 🏛️ Society & Current Events
+  { theme: 'Remote Work', consigne: 'Is this the end of the physical office?' },
+  { theme: 'Social Media', consigne: 'Has it become too toxic?' },
+  { theme: 'Ecology', consigne: 'What small habit do you practice daily?' },
+  { theme: 'The 4-Day Work Week', consigne: 'For or against?' },
+  { theme: 'Artificial Intelligence', consigne: 'Will it replace artists?' },
+  { theme: 'The Healthcare System', consigne: "What's the number one priority?" },
+  { theme: 'Public Transport', consigne: 'Why is it essential?' },
+  { theme: 'Junk Food', consigne: 'Should sugar be taxed more heavily?' },
+  { theme: 'The Right to Vote', consigne: 'Should it be mandatory?' },
+  { theme: 'Inflation', consigne: 'How are you adapting your budget?' },
+
+  // 📺 Media & Entertainment
+  { theme: 'Streaming vs Cinema', consigne: 'Which one will win?' },
+  { theme: 'Podcasts', consigne: 'Why has this format taken off?' },
+  { theme: 'Reality TV', consigne: 'Guilty pleasure or waste of time?' },
+  { theme: 'A Film That Stayed With You', consigne: 'Why did it hit so hard?' },
+  { theme: 'Influencers', consigne: 'Do they have too much power over young people?' },
+  { theme: 'Video Games', consigne: 'Are they a legitimate art form?' },
+  { theme: 'Print Journalism', consigne: 'Is it dying?' },
+  { theme: 'YouTube', consigne: 'Is it the new television?' },
+  { theme: 'Sports on TV', consigne: 'Why does the world go crazy for it?' },
+  { theme: 'Advertising', consigne: 'Is it manipulating us too much?' },
+
+  // 💡 Concepts & Objects
+  { theme: 'The Butterfly', consigne: 'Describe its transformation.' },
+  { theme: 'Coffee', consigne: 'Why is it a social ritual?' },
+  { theme: 'The Smartphone', consigne: 'Could you go a full day without it?' },
+  { theme: 'Winter', consigne: 'What you love (or hate) about this season.' },
+  { theme: 'Books', consigne: 'Paper or digital?' },
+  { theme: 'Music', consigne: 'Which genre defines your personality?' },
+  { theme: 'Travel', consigne: 'Your dream destination.' },
+  { theme: 'Cycling', consigne: 'Is it the future of cities?' },
+  { theme: 'Friendship', consigne: 'What is the most important quality in a friend?' },
+  { theme: 'Sleep', consigne: 'Why is it so underrated today?' },
+
+  // 🎤 Quick Take
+  { theme: 'Money', consigne: 'Does money buy happiness?' },
+  { theme: 'City or Countryside?', consigne: 'Where would you rather live, and why?' },
+  { theme: 'The Best Age of Your Life', consigne: 'Which is it, and why?' },
+  { theme: 'Success', consigne: 'What does it mean to you?' },
+  { theme: 'The Truth', consigne: 'Should you always tell it?' },
+  { theme: 'Learning a Language', consigne: 'How important is it really?' },
+  { theme: 'A Childhood Memory', consigne: 'Tell your most vivid one.' },
+  { theme: 'Animals', consigne: 'Why do we love them so much?' },
+  { theme: 'Intelligence vs Luck', consigne: 'What truly determines success?' },
+  { theme: 'Humanity in 100 Years', consigne: 'What will our future look like?' },
+];
+
+// Day 1 = Jan 1 2025. Challenge ID increases every day forever (like Wordle).
+const LAUNCH_MS = new Date('2026-03-17').getTime();
+
+export function getDailyChallenge(lang = 'fr') {
+  const challenges = lang === 'en' ? CHALLENGES_EN : CHALLENGES_FR;
+  const daysSinceLaunch = Math.floor((Date.now() - LAUNCH_MS) / (1000 * 60 * 60 * 24));
+  const index = daysSinceLaunch % challenges.length;
+  return { ...challenges[index], challengeId: daysSinceLaunch + 1 };
+}
+
+export function getTomorrowChallenge(lang = 'fr') {
+  const challenges = lang === 'en' ? CHALLENGES_EN : CHALLENGES_FR;
+  const daysSinceLaunch = Math.floor((Date.now() - LAUNCH_MS) / (1000 * 60 * 60 * 24)) + 1;
+  const index = daysSinceLaunch % challenges.length;
+  return { ...challenges[index], challengeId: daysSinceLaunch + 1 };
+}
+
+export function getRandomChallenge(lang = 'fr') {
+  const challenges = lang === 'en' ? CHALLENGES_EN : CHALLENGES_FR;
+  return challenges[Math.floor(Math.random() * challenges.length)];
 }

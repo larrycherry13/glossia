@@ -8,6 +8,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GuestGate from '../components/GuestGate';
+import { useAuth } from '../services/AuthContext';
+import { useTranslation } from '../services/LanguageContext';
 import { auth } from '../services/firebase';
 import { subscribeFeed, subscribeFriends } from '../services/firestoreService';
 
@@ -53,6 +56,17 @@ function FeedItem({ item }) {
 }
 
 export default function FeedScreen() {
+  const user = useAuth();
+  const { t } = useTranslation();
+
+  if (!user) {
+    return <GuestGate title={t('gate_feed_title')} subtitle={t('gate_feed_sub')} />;
+  }
+
+  return <FeedContent />;
+}
+
+function FeedContent() {
   const [feed, setFeed] = useState([]);
   const [friendUids, setFriendUids] = useState([]);
   const [loading, setLoading] = useState(true);
