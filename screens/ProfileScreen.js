@@ -1,9 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuestGate from '../components/GuestGate';
-import { logout } from '../services/authService';
+import { deleteAccount, logout } from '../services/authService';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from '../services/LanguageContext';
 import { auth } from '../services/firebase';
@@ -71,6 +71,27 @@ function ProfileContent() {
 
   async function handleLogout() {
     await logout();
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete account',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch (e) {
+              Alert.alert('Error', 'Please log out and log back in before deleting your account.');
+            }
+          },
+        },
+      ]
+    );
   }
 
   const bestScore = scores.length ? Math.max(...scores.map(s => s.score)) : null;
@@ -169,6 +190,11 @@ function ProfileContent() {
           <Text style={s.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
 
+        {/* Delete account */}
+        <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <Text style={s.deleteText}>Supprimer mon compte</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -214,6 +240,8 @@ const s = StyleSheet.create({
   rankFill:   { height: '100%', backgroundColor: C.yellow, borderRadius: 2 },
   rankHint:   { fontSize: 10, color: C.muted, textAlign: 'right', letterSpacing: 1 },
 
-  logoutBtn:  { marginHorizontal: 24, marginVertical: 24, borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingVertical: 16, alignItems: 'center' },
+  logoutBtn:  { marginHorizontal: 24, marginTop: 24, marginBottom: 8, borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingVertical: 16, alignItems: 'center' },
   logoutText: { fontSize: 14, fontWeight: '700', color: C.muted, letterSpacing: 1 },
+  deleteBtn:  { marginHorizontal: 24, marginBottom: 32, paddingVertical: 12, alignItems: 'center' },
+  deleteText: { fontSize: 12, color: C.red, letterSpacing: 1 },
 });

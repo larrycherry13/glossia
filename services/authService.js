@@ -1,9 +1,10 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
 export async function signup(email, password, username) {
@@ -25,4 +26,20 @@ export async function login(email, password) {
 
 export async function logout() {
   await signOut(auth);
+}
+
+export async function deleteAccount() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const uid = user.uid;
+
+  // Delete scores subcollection
+  const scoresSnap = await getDocs(collection(db, 'users', uid, 'scores'));
+  await Promise.all(scoresSnap.docs.map(d => deleteDoc(d.ref)));
+
+  // Delete user document
+  await deleteDoc(doc(db, 'users', uid));
+
+  // Delete Firebase Auth account
+  await deleteUser(user);
 }
