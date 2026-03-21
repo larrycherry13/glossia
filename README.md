@@ -1,6 +1,47 @@
-# Glossia — Jeu d'éloquence IA
+# Glossia — Jeu d'éloquence
 
 Application mobile de jeu d'éloquence avec analyse vocale par IA, mécanique de scoring gamifiée et couche sociale (amis, feed temps réel).
+
+---
+
+## Installation & lancement
+
+```bash
+# 1. Cloner le projet
+git clone <repo> && cd glossia
+
+# 2. Installer les dépendances
+npm install
+
+# 3. Créer le fichier d'environnement
+cp .env.example .env
+# puis remplir les valeurs (voir section Variables d'environnement)
+
+# 4. Lancer
+npx expo start --lan
+```
+
+> **Windows** : si `npx` est bloqué par PowerShell, exécute depuis le terminal bash de VS Code ou lance `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` en admin.
+
+---
+
+## Variables d'environnement
+
+Créer un fichier `.env` à la racine :
+
+```env
+EXPO_PUBLIC_OPENAI_API_KEY=sk-...
+EXPO_PUBLIC_FIREBASE_API_KEY=...
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+EXPO_PUBLIC_FIREBASE_APP_ID=...
+```
+
+> Expo SDK 54 charge automatiquement les variables préfixées `EXPO_PUBLIC_` depuis `.env`. Ne jamais committer ce fichier.
+
+Les services accèdent aux variables via `process.env.EXPO_PUBLIC_*`.
 
 ---
 
@@ -45,6 +86,8 @@ glossia/
 ├── App.js                          # Point d'entrée, auth state, tab navigator
 ├── polyfills.js                    # Polyfills chargés en premier (crypto, navigator)
 ├── app.json                        # Config Expo (nom, icônes, permissions micro)
+├── .env                            # Variables d'environnement (ne pas committer)
+├── .npmrc                          # legacy-peer-deps=true (React 19 compat)
 │
 ├── screens/
 │   ├── AuthScreen.js               # Login / Inscription (email + password)
@@ -60,7 +103,8 @@ glossia/
     ├── firestoreService.js         # CRUD Firestore (profils, scores, amis, feed)
     ├── openai.js                   # transcribeAudio() + analyzeWithGPT()
     ├── challenges.js               # Pool de 40 challenges, getRandomChallenge()
-    └── streak.js                   # Streak + historique local (AsyncStorage)
+    ├── streak.js                   # Streak + historique local (AsyncStorage)
+    └── validation.js               # Validation des inputs (email, password, username)
 ```
 
 ---
@@ -69,51 +113,59 @@ glossia/
 
 ### `services/openai.js`
 
-Deux fonctions exportées :
-
 ```js
 transcribeAudio(audioUri: string): Promise<string>
 // Envoie le fichier .m4a à Whisper (whisper-1), retourne la transcription FR
+// Timeout : 60s — lance une erreur explicite si dépassé
 
 analyzeWithGPT(transcript: string, theme: string): Promise<{
-  score: number,          // 0-100
-  fluidity: number,       // 0-30 (fluidité)
-  fillers_score: number,  // 0-30 (absence de mots parasites)
-  relevance: number,      // 0-40 (pertinence par rapport au thème)
-  feedback: string,       // Retour textuel de GPT
+  score: number,          // 0-100 (somme des 3 critères)
+  fluidity: number,       // 0-30
+  fillers_score: number,  // 0-30
+  relevance: number,      // 0-40
+  feedback: string,       // Retour textuel de GPT en français
   fillers_count: number,  // Nombre de mots parasites détectés
 }>
+// Gère les erreurs 401 (clé invalide), 429 (rate limit), timeout
 ```
 
-**Prompt GPT-4o** : arbitre qui évalue fluidité (30pts), absence de mots parasites (30pts), pertinence au thème (40pts). Retourne un JSON strict.
+**Prompt GPT-4o** : arbitre qui évalue fluidité (30pts), absence de mots parasites (30pts), pertinence au thème (40pts). Retourne un JSON strict via `response_format: { type: 'json_object' }`.
 
-**Mots parasites détectés** : "euh", "alors", "donc", "voilà", "genre", "en fait", "bah".
+**Mots parasites** : "euh", "alors", "donc", "voilà", "genre", "en fait", "bah".
 
 ### `services/challenges.js`
 
-40 challenges répartis en 4 catégories :
-- 🏛️ Société & Actualité (10)
-- 📺 Médias & Divertissement (10)
-- 💡 Concepts & Objets (10)
-- 🎤 Réflexion Rapide (10)
+40 challenges en 4 catégories. Chaque objet : `{ theme: string, consigne: string }`.
 
 ```js
 getRandomChallenge(): { theme: string, consigne: string }
-// Retourne un challenge aléatoire à chaque appel
+// Retourne un challenge aléatoire à chaque appel (Math.random)
 ```
+
+Catégories : 🏛️ Société & Actualité · 📺 Médias & Divertissement · 💡 Concepts & Objets · 🎤 Réflexion Rapide
 
 ### `services/streak.js` (AsyncStorage local)
 
 ```js
 getStreak(): Promise<number>
-recordPlay(): Promise<number>        // Incrémente le streak (1x/jour max), retourne nouveau streak
-getHistory(): Promise<Array>         // Derniers 5 scores locaux
-saveToHistory(score, theme): Promise<void>
+recordPlay(): Promise<number>              // Max 1 incrément/jour, retourne nouveau streak
+getHistory(): Promise<{score, theme, date}[]>  // 5 entrées max
+saveToHistory(score: number, theme: string): Promise<void>
+```
+
+### `services/validation.js`
+
+```js
+validateEmail(email: string): string | null     // null = valide
+validatePassword(password: string): string | null
+validateUsername(username: string): string | null
+// Username : 2-20 chars, alphanumérique + _ et -
 ```
 
 ### `services/firebase.js`
 
-Initialise Firebase avec `initializeAuth` + `getReactNativePersistence(AsyncStorage)` pour la persistance de session entre les relances de l'app.
+Initialise Firebase avec `initializeAuth` + `getReactNativePersistence(AsyncStorage)`.
+Toutes les valeurs viennent de `process.env.EXPO_PUBLIC_FIREBASE_*`.
 
 ```js
 export const auth  // Firebase Auth instance
@@ -124,7 +176,7 @@ export const db    // Firestore instance
 
 ```js
 signup(email, password, username): Promise<User>
-// Crée le compte Firebase Auth + document Firestore users/{uid}
+// createUserWithEmailAndPassword + setDoc users/{uid} avec username, usernameLower, streak:0
 
 login(email, password): Promise<User>
 logout(): Promise<void>
@@ -135,41 +187,41 @@ logout(): Promise<void>
 ```js
 // Profils
 getProfile(uid): Promise<UserProfile | null>
-searchUsers(queryStr): Promise<UserProfile[]>   // Recherche par usernameLower
+searchUsers(queryStr): Promise<UserProfile[]>       // Sur usernameLower, case-insensitive
 
 // Scores
-saveScore(scoreData): Promise<void>             // Sauvegarde une partie (appelé depuis HomeScreen)
-subscribeMyScores(uid, callback): Unsubscribe   // Listener temps réel
+saveScore(scoreData): Promise<void>                 // Appelé automatiquement après chaque partie
+subscribeMyScores(uid, callback): Unsubscribe        // Listener temps réel, limit 10
 
 // Amis
-sendFriendRequest(targetUid): Promise<void>
+sendFriendRequest(targetUid): Promise<void>         // Vérifie les doublons avant création
 acceptFriendRequest(friendshipId): Promise<void>
 declineFriendRequest(friendshipId): Promise<void>
-subscribeFriends(uid, callback): Unsubscribe
-subscribePendingRequests(uid, callback): Unsubscribe
+subscribeFriends(uid, callback): Unsubscribe        // status == 'accepted'
+subscribePendingRequests(uid, callback): Unsubscribe // receiverId == uid, status == 'pending'
 
 // Feed
 subscribeFeed(friendUids[], callback): Unsubscribe
 // Scores des amis, orderBy timestamp desc, limit 30
-// Firestore 'in' query : max 10 UIDs supportés
+// ⚠️ Firestore 'in' : max 10 UIDs — au-delà, les amis supplémentaires sont ignorés
 ```
 
 ---
 
 ## Schéma Firestore
 
-### Collection `users/{uid}`
+### `users/{uid}`
 ```json
 {
   "username": "string",
-  "usernameLower": "string",   // pour la recherche case-insensitive
+  "usernameLower": "string",
   "email": "string",
   "streak": "number",
   "createdAt": "Timestamp"
 }
 ```
 
-### Collection `scores/{scoreId}`
+### `scores/{scoreId}`
 ```json
 {
   "userId": "string",
@@ -186,10 +238,10 @@ subscribeFeed(friendUids[], callback): Unsubscribe
 }
 ```
 
-### Collection `friendships/{docId}`
+### `friendships/{docId}`
 ```json
 {
-  "members": ["uid1", "uid2"],   // array-contains pour les queries
+  "members": ["uid1", "uid2"],
   "senderId": "string",
   "receiverId": "string",
   "status": "pending | accepted | declined",
@@ -197,10 +249,44 @@ subscribeFeed(friendUids[], callback): Unsubscribe
 }
 ```
 
-**Index Firestore requis** :
-- `scores` : `userId ASC` + `timestamp DESC`
-- `friendships` : `receiverId ASC` + `status ASC`
-- `friendships` : `members array-contains` + `status ASC`
+### Index Firestore requis
+
+| Collection | Champs | Ordre |
+|---|---|---|
+| `scores` | `userId` + `timestamp` | ASC + DESC |
+| `friendships` | `members` (array) + `status` | — + ASC |
+| `friendships` | `receiverId` + `status` | ASC + ASC |
+
+> Firebase génère un lien direct dans les logs d'erreur pour créer les index manquants — clique dessus.
+
+### Règles de sécurité Firestore (à copier dans la console Firebase)
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == uid;
+      allow update: if request.auth.uid == uid;
+    }
+
+    match /scores/{scoreId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+
+    match /friendships/{docId} {
+      allow read: if request.auth != null &&
+        request.auth.uid in resource.data.members;
+      allow create: if request.auth.uid == request.resource.data.senderId;
+      allow update: if request.auth.uid == resource.data.receiverId ||
+        request.auth.uid == resource.data.senderId;
+    }
+  }
+}
+```
 
 ---
 
@@ -208,92 +294,79 @@ subscribeFeed(friendUids[], callback): Unsubscribe
 
 ```
 App.js
-├── (non connecté) → AuthScreen
-└── (connecté) → Bottom Tab Navigator
-    ├── Jouer  → Stack: HomeScreen → ResultScreen
-    ├── Feed   → FeedScreen
-    ├── Amis   → FriendsScreen
-    └── Profil → ProfileScreen
+├── user === undefined  →  écran blanc (chargement auth)
+├── user === null       →  AuthScreen
+└── user connecté       →  Bottom Tab Navigator
+    ├── Jouer   (Home icon)   →  Stack: HomeScreen → ResultScreen
+    ├── Feed    (Trophy icon) →  FeedScreen
+    ├── Amis    (Users icon)  →  FriendsScreen
+    └── Profil  (User icon)   →  ProfileScreen
 ```
-
-**Auth state** : géré dans `App.js` via `onAuthStateChanged`. État `undefined` = chargement (écran blanc), `null` = non connecté, `User` = connecté.
 
 ---
 
 ## Écrans
 
 ### `HomeScreen`
-- Charge le streak local au montage
-- `getRandomChallenge()` appelé à chaque nouveau défi
-- Enregistrement audio en AAC/m4a (format compatible iOS + Android)
+- Charge le streak local au montage + demande permission micro
+- `getRandomChallenge()` appelé à chaque tap "Commencer" (nouveau thème à chaque essai)
+- Enregistrement audio AAC/m4a (explicitement configuré pour iOS + Android)
 - Après analyse : sauvegarde dans AsyncStorage (local) ET Firestore (social)
-- Passe au ResultScreen via `navigation.navigate('Result', { ...analysis, history, streak })`
+- Params passés à ResultScreen : `{ score, fluidity, fillers_score, relevance, feedback, fillers_count, theme, consigne, transcript, audioUri, streak, history }`
 
 ### `ResultScreen`
-Reçoit en params : `{ score, fluidity, fillers_score, relevance, feedback, fillers_count, theme, consigne, transcript, audioUri, streak, history }`
-
-Affiche :
-1. Tile de score animé (compteur qui monte, couleur verte/jaune/rouge)
-2. Feedback GPT en héro
-3. 3 barres de progression animées (Fluidité/Parasites/Pertinence)
-4. Nombre de mots parasites
-5. Rappel du thème
-6. Historique 5 dernières sessions (tiles colorés)
-7. Transcription
+1. Tile de score animé (compteur 0→score, couleur verte/jaune/rouge)
+2. Feedback GPT en héro (premier contenu lisible)
+3. 3 barres animées : Fluidité /30 · Mots parasites /30 · Pertinence /40
+4. Compteur de mots parasites (coloré)
+5. Rappel du thème + consigne
+6. Historique 5 sessions (tiles colorés)
+7. Transcription complète
 8. Boutons : Réécouter / Partager (Share API natif) / Nouvel essai
 
 ### `FeedScreen`
-- Subscribe à `subscribeFriends` → récupère les UIDs des amis
-- Subscribe à `subscribeFeed(friendUids)` → listener temps réel
-- Affiche : username, thème, score tile, timestamp relatif
+- Double listener temps réel : `subscribeFriends` → UIDs → `subscribeFeed`
+- Affiche : username · thème · consigne · score tile · timestamp relatif
 
 ### `FriendsScreen`
 3 onglets : **AMIS** / **DEMANDES** / **RECHERCHE**
-- Recherche par username (query Firestore sur `usernameLower`)
-- Demandes entrantes avec Accepter/Refuser
-- Liste des amis confirmés
+- Recherche Firestore sur `usernameLower` (prefix match)
+- Demandes avec état de chargement par item (`loadingRequests`)
+- Bannière d'erreur dismissable en bas
 
 ### `ProfileScreen`
 - Avatar généré (initiale du username)
-- Stats : streak 🔥, nombre de parties, meilleur score
-- Historique des 10 dernières parties
-- Bouton déconnexion
+- Stats : streak 🔥 · nb parties · meilleur score
+- 10 dernières parties avec score tile
+- Déconnexion via `logout()`
 
 ---
 
 ## Design system
 
-Palette inspirée de Wordle (dark mode) :
+Palette Wordle dark mode :
 
 ```js
-bg:     '#111111'   // fond
-border: '#2C2C2C'   // séparateurs, bordures
-text:   '#FFFFFF'   // texte principal
-muted:  '#818384'   // texte secondaire
-green:  '#538D4E'   // score ≥ 80
-yellow: '#B59F3B'   // score 55-79
-red:    '#C0392B'   // score < 55
+bg:     '#111111'  // fond
+border: '#2C2C2C'  // séparateurs, bordures
+text:   '#FFFFFF'  // texte principal
+muted:  '#818384'  // texte secondaire, labels
+green:  '#538D4E'  // score ≥ 80
+yellow: '#B59F3B'  // score 55–79
+red:    '#C0392B'  // score < 55 + erreurs
 ```
 
-**Principes** : zéro gradient, zéro ombre portée, typographie seule, dividers 1px, boutons avec `borderRadius: 4`.
+**Principes** : zéro gradient · zéro ombre portée · typographie seule · dividers 1px · `borderRadius: 4` partout · boutons flat blanc sur fond noir · bannière d'erreur en bas de chaque écran (dismissable).
 
 ---
 
-## Variables d'environnement
+## Problèmes connus
 
-La clé OpenAI est actuellement hardcodée dans `services/openai.js`.
-⚠️ **Ne pas committer en production** — utiliser `expo-constants` + EAS Secrets.
-
-La config Firebase dans `services/firebase.js` est publique par nature (sécurité assurée par les Firestore Rules).
-
----
-
-## Problèmes connus / Notes
-
-- **expo-av** : déprécié en SDK 54, à migrer vers `expo-audio` (installé mais pas encore utilisé)
-- **Feed social** : limité à 10 amis pour les requêtes Firestore `in` (limite native)
-- **Streak** : stocké localement (AsyncStorage), pas synchronisé avec Firestore `users/{uid}.streak`
-- **Tunnel ngrok** : nécessite un auth token depuis 2023, utiliser `--lan` à la place
-- **Windows** : le chemin `node:sea` dans les externals Metro cause une erreur sur Windows (colon invalide dans les paths) — patch appliqué dans `node_modules/@expo/cli/build/src/start/server/metro/externals.js`
-- **npm** : `.npmrc` configuré avec `legacy-peer-deps=true` pour résoudre les conflits React 19
-"# glossia" 
+| Problème | Statut | Solution |
+|---|---|---|
+| `expo-av` déprécié SDK 54 | ⚠️ Warning | `expo-audio` installé, migration non faite |
+| Feed limité à 10 amis | Limitation Firestore | Requête `in` max 10 éléments |
+| Streak non synchronisé Firestore | Local seulement | AsyncStorage ≠ `users/{uid}.streak` |
+| Tunnel ngrok | Auth token requis | Utiliser `--lan` à la place |
+| Windows : `node:sea` path invalide | Patché | `externals.js` dans `@expo/cli` modifié |
+| npm peer deps React 19 | Contourné | `.npmrc` avec `legacy-peer-deps=true` |

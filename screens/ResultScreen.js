@@ -111,6 +111,46 @@ const ss = StyleSheet.create({
   grade: { fontSize: 9, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
 });
 
+function GoldBadge({ t }) {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1, tension: 60, friction: 6, useNativeDriver: true,
+    }).start();
+  }, []);
+  return (
+    <Animated.View style={[badge.wrap, { transform: [{ scale: scaleAnim }] }]}>
+      <Text style={badge.emoji}>🏅</Text>
+      <View>
+        <Text style={badge.title}>{t('badge_gold')}</Text>
+        <Text style={badge.sub}>{t('badge_gold_sub')}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+const badge = StyleSheet.create({
+  wrap:  { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#1A1500', borderWidth: 1, borderColor: '#B59F3B', borderRadius: 4, paddingVertical: 16, paddingHorizontal: 20, marginHorizontal: 24, marginTop: 20 },
+  emoji: { fontSize: 28 },
+  title: { fontSize: 13, fontWeight: '800', color: '#B59F3B', letterSpacing: 1 },
+  sub:   { fontSize: 11, color: '#8A7A2B', marginTop: 2 },
+});
+
+function EncourageBanner({ t }) {
+  return (
+    <View style={enc.wrap}>
+      <Text style={enc.title}>{t('encourage_title')}</Text>
+      <Text style={enc.sub}>{t('encourage_sub')}</Text>
+    </View>
+  );
+}
+
+const enc = StyleSheet.create({
+  wrap:  { backgroundColor: '#1A1111', borderWidth: 1, borderColor: '#2C2C2C', borderRadius: 4, paddingVertical: 16, paddingHorizontal: 20, marginHorizontal: 24, marginTop: 20, alignItems: 'center' },
+  title: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
+  sub:   { fontSize: 12, color: '#818384', marginTop: 4 },
+});
+
 export default function ResultScreen({ route, navigation }) {
   const { t, lang } = useTranslation();
   const {
@@ -195,6 +235,9 @@ export default function ResultScreen({ route, navigation }) {
           <AnimatedScore score={score} t={t} />
           <Text style={s.scoreOutOf}>/100</Text>
         </View>
+
+        {score >= 90 && <GoldBadge t={t} />}
+        {score < 50 && <EncourageBanner t={t} />}
 
         <View style={s.divider} />
 

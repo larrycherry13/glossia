@@ -22,6 +22,8 @@ web-build/
 config.js
 .env
 .env.local
+.env.dev
+.env.prod
 
 # Windows
 Thumbs.db

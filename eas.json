@@ -6,13 +6,40 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCFOo3BoFFxseoHJfswxCYIoL_J2tPdXfQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "glossia-dev.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "glossia-dev",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "glossia-dev.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "423938189033",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:423938189033:web:ad0ede90ea5f9653813278",
+        "EXPO_PUBLIC_ENV": "development"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCFOo3BoFFxseoHJfswxCYIoL_J2tPdXfQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "glossia-dev.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "glossia-dev",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "glossia-dev.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "423938189033",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:423938189033:web:ad0ede90ea5f9653813278",
+        "EXPO_PUBLIC_ENV": "development"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDRQ69j_25mPhr5e-LTSW4uNma6MwY1bbo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "glossia-325c1.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "glossia-325c1",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "glossia-325c1.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "765172556238",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:765172556238:web:0452532025599e065bcb9f",
+        "EXPO_PUBLIC_ENV": "production"
+      }
     }
   },
   "submit": {
