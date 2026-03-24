@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from '../services/LanguageContext';
 import { getTomorrowChallenge } from '../services/challenges';
+import { registerForPushNotifications } from '../services/notifications';
 
 const C = {
   bg:     '#111111',
@@ -157,7 +158,7 @@ export default function ResultScreen({ route, navigation }) {
     score, fluidity, fillers_score, relevance,
     feedback, fillers_count,
     theme, consigne, challengeId, transcript, audioUri,
-    streak, history = [], firstSession = false,
+    streak, history = [], firstSession = false, isPractice = false,
   } = route.params;
 
   const tomorrow = firstSession ? getTomorrowChallenge(lang) : null;
@@ -166,7 +167,14 @@ export default function ResultScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const soundRef = useRef(null);
 
-  useEffect(() => { return () => { soundRef.current?.unloadAsync(); }; }, []);
+  useEffect(() => {
+    // Ask for notification permission after first real game
+    if (!isPractice) {
+      const timer = setTimeout(() => registerForPushNotifications(), 2000);
+      return () => { clearTimeout(timer); soundRef.current?.unloadAsync(); };
+    }
+    return () => { soundRef.current?.unloadAsync(); };
+  }, []);
 
   async function handlePlayPause() {
     setError(null);
@@ -205,7 +213,11 @@ export default function ResultScreen({ route, navigation }) {
 
   function handleReplay() {
     soundRef.current?.unloadAsync();
-    navigation.goBack();
+    if (isPractice) {
+      navigation.navigate('Home', { startPractice: true });
+    } else {
+      navigation.goBack();
+    }
   }
 
   const fillerColor = fillers_count === 0 ? C.green : fillers_count <= 2 ? C.yellow : C.red;
@@ -351,8 +363,14 @@ export default function ResultScreen({ route, navigation }) {
 
         <TouchableOpacity style={[s.btnPrimary, { marginHorizontal: 24, marginTop: 12 }]} onPress={handleReplay} activeOpacity={0.7}>
           <RotateCcw color="#111" size={15} />
-          <Text style={s.btnPrimaryText}>{t('btn_replay')}</Text>
+          <Text style={s.btnPrimaryText}>{isPractice ? t('btn_another') : t('btn_replay')}</Text>
         </TouchableOpacity>
+
+        {isPractice && (
+          <View style={s.practiceNote}>
+            <Text style={s.practiceNoteText}>{t('practice_note')}</Text>
+          </View>
+        )}
 
       </ScrollView>
 
@@ -425,6 +443,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, borderRadius: 4, paddingVertical: 16,
   },
   btnSecondaryText: { fontSize: 14, fontWeight: '700', color: C.text, letterSpacing: 1 },
+
+  practiceNote: { marginHorizontal: 24, marginTop: 8, marginBottom: 16, alignItems: 'center' },
+  practiceNoteText: { fontSize: 11, color: C.muted, letterSpacing: 1 },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

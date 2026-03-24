@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getDailyChallenge } from '../services/challenges';
+import { getDailyChallenge, getRandomChallenge } from '../services/challenges';
 import { useTranslation } from '../services/LanguageContext';
 import { analyzeSession } from '../services/openai';
 import { saveScore } from '../services/firestoreService';
@@ -42,7 +42,7 @@ function getTimeUntilMidnight() {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const { t, lang, toggleLang } = useTranslation();
   const [phase, setPhase] = useState('idle');
   const [countdown, setCountdown] = useState(RECORD_DURATION_SEC);
@@ -54,6 +54,7 @@ export default function HomeScreen({ navigation }) {
   const [challenge, setChallenge] = useState(null);
   const [alreadyPlayed, setAlreadyPlayed] = useState(false);
   const [firstSession, setFirstSession] = useState(false);
+  const [isPractice, setIsPractice] = useState(false);
   const [nextChallenge, setNextChallenge] = useState(getTimeUntilMidnight());
 
   const recordingRef = useRef(null);
@@ -95,7 +96,7 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (phase === 'theme_reveal') {
       revealAnim.setValue(0);
-      const readDuration = firstSession ? 15 : 5;
+      const readDuration = (firstSession && !isPractice) ? 15 : 5;
       setReadCount(readDuration);
       Animated.timing(revealAnim, {
         toValue: 1, duration: 300, easing: Easing.out(Easing.ease), useNativeDriver: true,
@@ -214,12 +215,15 @@ export default function HomeScreen({ navigation }) {
 
       // Save results
       try {
-        const newStreak = await recordPlay();
-        await saveToHistory(analysis.score, challenge.theme);
-        await saveScore({ ...analysis, theme: challenge.theme, consigne: challenge.consigne, transcript });
-        const history = await getHistory();
-
-        setAlreadyPlayed(true);
+        let newStreak = streak;
+        let history = [];
+        if (!isPractice) {
+          newStreak = await recordPlay();
+          await saveToHistory(analysis.score, challenge.theme);
+          await saveScore({ ...analysis, theme: challenge.theme, consigne: challenge.consigne, transcript });
+          history = await getHistory();
+          setAlreadyPlayed(true);
+        }
         navigation.navigate('Result', {
           ...analysis,
           theme: challenge.theme,
@@ -229,7 +233,8 @@ export default function HomeScreen({ navigation }) {
           audioUri: uri,
           streak: newStreak,
           history,
-          firstSession,
+          firstSession: firstSession && !isPractice,
+          isPractice,
         });
       } catch (e) {
         throw new Error(`Failed to save results: ${e.message}`);
@@ -245,6 +250,25 @@ export default function HomeScreen({ navigation }) {
 
   // ── Phases ─────────────────────────────────────────────────────────────────
 
+  function startPractice() {
+    setIsPractice(true);
+    setChallenge(getRandomChallenge(lang));
+    setPhase('theme_reveal');
+  }
+
+  useEffect(() => {
+    if (route.params?.startPractice) {
+      navigation.setParams({ startPractice: false });
+      startPractice();
+    }
+  }, [route.params?.startPractice]);
+
+  function handleStart() {
+    setIsPractice(false);
+    setChallenge(getDailyChallenge(lang));
+    setPhase('theme_reveal');
+  }
+
   function renderIdle() {
     if (alreadyPlayed) {
       return (
@@ -255,6 +279,9 @@ export default function HomeScreen({ navigation }) {
             <Text style={s.countdownLabel}>{t('next_label')}</Text>
             <Text style={s.countdownClock}>{nextChallenge}</Text>
           </View>
+          <TouchableOpacity style={s.practiceBtn} onPress={startPractice} activeOpacity={0.7}>
+            <Text style={s.practiceBtnText}>{t('practice_btn')}</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -263,7 +290,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={s.idleHint}>{t('ready_hint')}</Text>
         <TouchableOpacity
           style={s.btn}
-          onPress={() => setPhase('theme_reveal')}
+          onPress={handleStart}
           activeOpacity={0.7}
         >
           <Text style={s.btnText}>{t('start_btn')}</Text>
@@ -429,6 +456,9 @@ const s = StyleSheet.create({
     paddingVertical: 16, paddingHorizontal: 40, marginTop: 8,
   },
   btnText: { fontSize: 15, fontWeight: '700', color: '#111', letterSpacing: 1 },
+
+  practiceBtn: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 24, borderWidth: 1, borderColor: C.border, borderRadius: 4 },
+  practiceBtnText: { fontSize: 13, fontWeight: '600', color: C.muted, letterSpacing: 1 },
 
   readCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   readCountText:{ fontSize: 22, fontWeight: '900', color: C.muted },

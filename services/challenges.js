@@ -46,6 +46,42 @@ const CHALLENGES_FR = [
   { theme: 'Les Animaux', consigne: 'Pourquoi les aimons-nous autant ?' },
   { theme: 'Intelligence vs Chance', consigne: "Qu'est-ce qui détermine le succès ?" },
   { theme: "L'Humanité dans 100 Ans", consigne: 'Quel sera notre futur ?' },
+
+  // 🔤 Un mot, 30 secondes
+  { theme: 'Liberté', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Ambition', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Courage', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Confiance', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Discipline', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Curiosité', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Patience', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Créativité', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Résilience', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+  { theme: 'Authenticité', consigne: 'Parle-moi de ce mot pendant 30 secondes.' },
+
+  // 📖 Raconte-moi
+  { theme: 'Ta Journée', consigne: 'Raconte ta journée avec le moins de fillers possible.' },
+  { theme: 'Ton Matin', consigne: 'Décris ta routine du matin de A à Z.' },
+  { theme: 'Ton Endroit Préféré', consigne: 'Décris-le comme si je ne le connaissais pas.' },
+  { theme: 'Ta Plus Grande Fierté', consigne: 'Raconte ce moment sans hésitation.' },
+  { theme: 'Un Échec Formateur', consigne: 'Raconte-le et ce que ça t\'a appris.' },
+  { theme: 'Ton Dernier Repas', consigne: 'Décris-le avec précision et enthousiasme.' },
+  { theme: 'Ton Meilleur Voyage', consigne: 'Raconte un moment marquant de ce voyage.' },
+  { theme: 'Ta Passion', consigne: 'Explique-la comme si tu voulais convaincre quelqu\'un.' },
+  { theme: 'Ton Pire Lundi', consigne: 'Raconte-le avec fluidité, sans t\'arrêter.' },
+  { theme: 'Un Moment Gênant', consigne: 'Raconte-le clairement, sans mots parasites.' },
+
+  // 🎯 Convaincs-moi
+  { theme: 'Convaincs-moi de me lever tôt', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de lire plus', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de faire du sport', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de supprimer Instagram', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de voyager seul', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de changer de carrière', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de méditer', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi de moins utiliser mon téléphone', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi d\'apprendre une nouvelle compétence', consigne: 'Tu as 30 secondes pour me persuader.' },
+  { theme: 'Convaincs-moi que l\'échec est une chance', consigne: 'Tu as 30 secondes pour me persuader.' },
 ];
 
 const CHALLENGES_EN = [
@@ -96,6 +132,42 @@ const CHALLENGES_EN = [
   { theme: 'Animals', consigne: 'Why do we love them so much?' },
   { theme: 'Intelligence vs Luck', consigne: 'What truly determines success?' },
   { theme: 'Humanity in 100 Years', consigne: 'What will our future look like?' },
+
+  // 🔤 One Word, 30 Seconds
+  { theme: 'Freedom', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Ambition', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Courage', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Confidence', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Discipline', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Curiosity', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Patience', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Creativity', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Resilience', consigne: 'Talk to me about this word for 30 seconds.' },
+  { theme: 'Authenticity', consigne: 'Talk to me about this word for 30 seconds.' },
+
+  // 📖 Tell Me
+  { theme: 'Your Day', consigne: 'Tell me about your day with as few filler words as possible.' },
+  { theme: 'Your Morning', consigne: 'Describe your morning routine from A to Z.' },
+  { theme: 'Your Favourite Place', consigne: 'Describe it as if I\'ve never been there.' },
+  { theme: 'Your Greatest Pride', consigne: 'Tell me about that moment without hesitation.' },
+  { theme: 'A Failure That Taught You', consigne: 'Tell me what happened and what you learned.' },
+  { theme: 'Your Last Meal', consigne: 'Describe it with precision and enthusiasm.' },
+  { theme: 'Your Best Trip', consigne: 'Tell me one memorable moment from that trip.' },
+  { theme: 'Your Passion', consigne: 'Explain it as if you\'re trying to convince someone.' },
+  { theme: 'Your Worst Monday', consigne: 'Tell me about it fluently, without stopping.' },
+  { theme: 'An Embarrassing Moment', consigne: 'Tell it clearly, no filler words allowed.' },
+
+  // 🎯 Convince Me
+  { theme: 'Convince me to wake up early', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to read more', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to exercise', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to delete Instagram', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to travel solo', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to change careers', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to meditate', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to use my phone less', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me to learn a new skill', consigne: 'You have 30 seconds to persuade me.' },
+  { theme: 'Convince me that failure is an opportunity', consigne: 'You have 30 seconds to persuade me.' },
 ];
 
 // Day 1 = Jan 1 2025. Challenge ID increases every day forever (like Wordle).

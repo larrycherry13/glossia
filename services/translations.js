@@ -48,6 +48,9 @@ export const translations = {
     btn_resume:      'Reprendre',
     btn_share:       'Partager',
     btn_replay:      'Rejouer',
+    btn_another:     'Autre sujet',
+    practice_btn:    'Mode pratique',
+    practice_note:   'Mode pratique — score non enregistré',
 
     // Auth
     ph_username:       "Nom d'utilisateur",
@@ -172,6 +175,9 @@ export const translations = {
     btn_resume:      'Resume',
     btn_share:       'Share',
     btn_replay:      'Try Again',
+    btn_another:     'New Topic',
+    practice_btn:    'Practice Mode',
+    practice_note:   'Practice mode — score not saved',
 
     // Auth
     ph_username:       'Username',

@@ -64,6 +64,13 @@ export async function saveScore(scoreData) {
     ...scoreData,
     timestamp: serverTimestamp(),
   });
+  // Track last played date for push notifications
+  const today = new Date().toISOString().split('T')[0];
+  await updateDoc(doc(db, 'users', user.uid), { lastPlayedDate: today });
+}
+
+export async function savePushToken(uid, token) {
+  await updateDoc(doc(db, 'users', uid), { pushToken: token });
 }
 
 export function subscribeMyScores(uid, callback) {

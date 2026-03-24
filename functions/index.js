@@ -1,8 +1,12 @@
 const { onRequest } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { setGlobalOptions } = require('firebase-functions');
 const OpenAI = require('openai');
 const { toFile } = require('openai');
+const admin = require('firebase-admin');
+
+admin.initializeApp();
 
 setGlobalOptions({ maxInstances: 10, region: 'northamerica-northeast1' });
 
@@ -87,5 +91,53 @@ exports.analyzeSession = onRequest(
       console.error('analyzeSession error:', e);
       res.status(500).json({ error: e.message });
     }
+  }
+);
+
+// Runs every day at 6pm Eastern time
+exports.dailyReminder = onSchedule(
+  { schedule: '0 22 * * *', timeZone: 'UTC', region: 'northamerica-northeast1' },
+  async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const db = admin.firestore();
+
+    // Get all users who have a push token and haven't played today
+    const snapshot = await db.collection('users')
+      .where('pushToken', '!=', null)
+      .get();
+
+    const tokens = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.pushToken && data.lastPlayedDate !== today) {
+        tokens.push(data.pushToken);
+      }
+    });
+
+    if (tokens.length === 0) return;
+
+    // Send via Expo Push API in batches of 100
+    const chunks = [];
+    for (let i = 0; i < tokens.length; i += 100) {
+      chunks.push(tokens.slice(i, i + 100));
+    }
+
+    for (const chunk of chunks) {
+      const messages = chunk.map(token => ({
+        to: token,
+        title: '🎤 Glossia',
+        body: "Le défi du jour t'attend. 30 secondes pour convaincre.",
+        sound: 'default',
+        data: { screen: 'Home' },
+      }));
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messages),
+      });
+    }
+
+    console.log(`Sent reminders to ${tokens.length} users`);
   }
 );
