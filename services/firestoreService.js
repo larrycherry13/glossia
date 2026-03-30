@@ -73,6 +73,12 @@ export async function savePushToken(uid, token) {
   await updateDoc(doc(db, 'users', uid), { pushToken: token });
 }
 
+export async function updateStreak(streak) {
+  const user = auth.currentUser;
+  if (!user) return;
+  await updateDoc(doc(db, 'users', user.uid), { streak });
+}
+
 export function subscribeMyScores(uid, callback) {
   const q = query(
     collection(db, 'scores'),

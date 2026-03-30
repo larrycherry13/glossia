@@ -1,13 +1,16 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuestGate from '../components/GuestGate';
 import { deleteAccount, logout } from '../services/authService';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from '../services/LanguageContext';
 import { auth } from '../services/firebase';
-import { getProfile, subscribeMyScores, uploadProfilePhoto } from '../services/firestoreService';
+import { getProfile, subscribeMyScores, uploadProfilePhoto, updateStreak } from '../services/firestoreService';
+import { getStreak } from '../services/streak';
 import { getRank } from '../services/rank';
 
 const C = {
@@ -35,15 +38,30 @@ function ProfileContent() {
   const [profile, setProfile] = useState(null);
   const [scores, setScores] = useState([]);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
 
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
     if (!uid) return;
-    getProfile(uid).then(setProfile);
     const unsub = subscribeMyScores(uid, setScores);
     return unsub;
   }, [uid]);
+
+  useFocusEffect(useCallback(() => {
+    if (!uid) return;
+    // Sync local streak to Firestore in case it's out of sync
+    getStreak().then(localStreak => {
+      getProfile(uid).then(profile => {
+        setProfile(profile);
+        if (localStreak > (profile?.streak ?? 0)) {
+          updateStreak(localStreak);
+          setProfile(prev => ({ ...prev, streak: localStreak }));
+        }
+      });
+    });
+  }, [uid]));
 
   async function handlePickPhoto() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -74,24 +92,23 @@ function ProfileContent() {
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      'Delete account',
-      'This will permanently delete your account and all your data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-            } catch (e) {
-              Alert.alert('Error', 'Please log out and log back in before deleting your account.');
-            }
-          },
-        },
-      ]
-    );
+    setDeletePassword('');
+    setDeleteModal(true);
+  }
+
+  async function confirmDelete() {
+    if (!deletePassword) return;
+    try {
+      await deleteAccount(deletePassword);
+      setDeleteModal(false);
+    } catch (e) {
+      setDeleteModal(false);
+      if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+        Alert.alert('Error', 'Wrong password. Please try again.');
+      } else {
+        Alert.alert('Error', e.message);
+      }
+    }
   }
 
   const bestScore = scores.length ? Math.max(...scores.map(s => s.score)) : null;
@@ -196,6 +213,33 @@ function ProfileContent() {
         </TouchableOpacity>
 
       </ScrollView>
+
+      {/* Delete account modal */}
+      <Modal visible={deleteModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Supprimer mon compte</Text>
+            <Text style={s.modalSub}>Entre ton mot de passe pour confirmer. Cette action est irréversible.</Text>
+            <TextInput
+              style={s.modalInput}
+              placeholder="Mot de passe"
+              placeholderTextColor="#818384"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              autoFocus
+            />
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.modalCancel} onPress={() => setDeleteModal(false)}>
+                <Text style={s.modalCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.modalDelete} onPress={confirmDelete}>
+                <Text style={s.modalDeleteText}>Supprimer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -244,4 +288,15 @@ const s = StyleSheet.create({
   logoutText: { fontSize: 14, fontWeight: '700', color: C.muted, letterSpacing: 1 },
   deleteBtn:  { marginHorizontal: 24, marginBottom: 32, paddingVertical: 12, alignItems: 'center' },
   deleteText: { fontSize: 12, color: C.red, letterSpacing: 1 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  modalBox:     { backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#2C2C2C', borderRadius: 8, padding: 24, width: '85%' },
+  modalTitle:   { fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginBottom: 8 },
+  modalSub:     { fontSize: 13, color: '#818384', marginBottom: 20, lineHeight: 19 },
+  modalInput:   { borderWidth: 1, borderColor: '#2C2C2C', borderRadius: 4, padding: 12, color: '#FFFFFF', fontSize: 15, marginBottom: 20 },
+  modalBtns:    { flexDirection: 'row', gap: 12 },
+  modalCancel:  { flex: 1, borderWidth: 1, borderColor: '#2C2C2C', borderRadius: 4, paddingVertical: 12, alignItems: 'center' },
+  modalCancelText: { color: '#818384', fontWeight: '600' },
+  modalDelete:  { flex: 1, backgroundColor: '#C0392B', borderRadius: 4, paddingVertical: 12, alignItems: 'center' },
+  modalDeleteText: { color: '#FFFFFF', fontWeight: '700' },
 });

@@ -17,7 +17,8 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Glossia a besoin du micro pour analyser votre prise de parole.",
+        "NSMicrophoneUsageDescription": "Glossia uses the microphone to record your 30-second speech. The recording is analyzed by AI to score your fluency, filler words, and relevance.",
+        "NSPhotoLibraryUsageDescription": "Glossia uses your photo library to let you set a profile photo that is visible to your friends.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.larrycherry13.glossia"

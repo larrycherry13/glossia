@@ -1,6 +1,8 @@
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
@@ -28,10 +30,14 @@ export async function logout() {
   await signOut(auth);
 }
 
-export async function deleteAccount() {
+export async function deleteAccount(password) {
   const user = auth.currentUser;
   if (!user) return;
   const uid = user.uid;
+
+  // Re-authenticate before deleting
+  const credential = EmailAuthProvider.credential(user.email, password);
+  await reauthenticateWithCredential(user, credential);
 
   // Delete scores subcollection
   const scoresSnap = await getDocs(collection(db, 'users', uid, 'scores'));

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDailyChallenge, getRandomChallenge } from '../services/challenges';
 import { useTranslation } from '../services/LanguageContext';
 import { analyzeSession } from '../services/openai';
-import { saveScore } from '../services/firestoreService';
+import { saveScore, updateStreak } from '../services/firestoreService';
 import { getHistory, getStreak, hasPlayedToday, isFirstSession, recordPlay, saveToHistory } from '../services/streak';
 
 const RECORD_DURATION_SEC = 30;
@@ -219,6 +219,7 @@ export default function HomeScreen({ navigation, route }) {
         let history = [];
         if (!isPractice) {
           newStreak = await recordPlay();
+          await updateStreak(newStreak);
           await saveToHistory(analysis.score, challenge.theme);
           await saveScore({ ...analysis, theme: challenge.theme, consigne: challenge.consigne, transcript });
           history = await getHistory();
